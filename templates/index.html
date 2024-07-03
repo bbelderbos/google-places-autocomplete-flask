@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Places Autocomplete with HTMX</title>
+    <script src="https://unpkg.com/htmx.org@2.0.0"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key={{ api_key }}&libraries=places"></script>
+</head>
+<body>
+    <h1>Search for a location</h1>
+    <input type="text" id="place-input" placeholder="Enter a place" hx-trigger="keyup changed delay:500ms from:place-input" hx-get="/autocomplete" hx-target="#results">
+    <div id="results"></div>
+
+    <script>
+        let autocompleteService;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            autocompleteService = new google.maps.places.AutocompleteService();
+        });
+
+        document.getElementById('place-input').addEventListener('input', function() {
+            let input = this.value;
+
+            if (input.length > 2) {
+                autocompleteService.getPlacePredictions({ input }, displaySuggestions);
+            } else {
+                clearSuggestions();
+            }
+        });
+
+        function displaySuggestions(predictions, status) {
+            const resultsDiv = document.getElementById('results');
+            if (status !== google.maps.places.PlacesServiceStatus.OK || !predictions) {
+                resultsDiv.innerHTML = ''; // Clear results only if no valid predictions
+                return;
+            }
+
+            resultsDiv.innerHTML = ''; // Clear previous results
+
+            predictions.forEach((prediction) => {
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.value = prediction.place_id;
+                checkbox.addEventListener('change', function() {
+                    if (this.checked) {
+                        htmx.ajax('POST', '/store', { values: { place_id: this.value } });
+                    }
+                });
+
+                const label = document.createElement('label');
+                label.textContent = prediction.description;
+
+                const div = document.createElement('div');
+                div.appendChild(checkbox);
+                div.appendChild(label);
+
+                resultsDiv.appendChild(div);
+            });
+        }
+
+        function clearSuggestions() {
+            document.getElementById('results').innerHTML = '';
+        }
+    </script>
+</body>
+</html>
